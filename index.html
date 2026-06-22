@@ -54,6 +54,16 @@ function sanitizeTopic(s) {
   const cleaned = (s || '').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
   return 'claude-tally-' + (cleaned || 'untitled');
 }
+/* extrapolate clicks-per-hour from the spacing of the most recent clicks.
+   needs >=2 clicks; the window stretches to `now`, so an idle gap decays the rate. */
+function ratePerHour(times, now) {
+  if (times.length < 2) return 0;
+  const recent = times.slice(-6);
+  const intervals = recent.length - 1;
+  const span = Math.max(now, recent[recent.length - 1]) - recent[0];
+  if (span <= 0) return 0;
+  return Math.round(intervals / span * 3600000);
+}
 function generateRoomName() {
   const a = ADJS[Math.floor(Math.random() * ADJS.length)];
   const n = NOUNS[Math.floor(Math.random() * NOUNS.length)];
@@ -222,10 +232,12 @@ function TallyDossier() {
     setCopied(true); setTimeout(() => setCopied(false), 1600);
   }, [room]);
 
-  const ummCount = marks.filter(m => m.mark_type === 'umm').length;
-  const hmmmCount = marks.filter(m => m.mark_type === 'hmmmm').length;
-  const ummPerMin = marks.filter(m => m.mark_type === 'umm' && now - m.ts <= 60000).length;
-  const hmmmPerMin = marks.filter(m => m.mark_type === 'hmmmm' && now - m.ts <= 60000).length;
+  const ummTimes = marks.filter(m => m.mark_type === 'umm').map(m => m.ts);
+  const hmmmTimes = marks.filter(m => m.mark_type === 'hmmmm').map(m => m.ts);
+  const ummCount = ummTimes.length;
+  const hmmmCount = hmmmTimes.length;
+  const ummPerHour = ratePerHour(ummTimes, now);
+  const hmmmPerHour = ratePerHour(hmmmTimes, now);
   const others = Object.entries(agents).filter(([id]) => id !== me.user_id);
 
   return (
@@ -292,7 +304,7 @@ function TallyDossier() {
             </div>
             <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 10, letterSpacing: 2, color: 'var(--sepia)', textTransform: 'uppercase', marginTop: 4 }}>Ummm</div>
             <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 11, letterSpacing: 1.5, color: 'var(--sepia)', textTransform: 'uppercase', marginTop: 6 }}>
-              <span style={{ color: 'var(--ink)' }}>{ummPerMin}</span> / min
+              <span style={{ color: 'var(--ink)' }}>{ummPerHour}</span> / hr
             </div>
           </div>
           <div>
@@ -301,7 +313,7 @@ function TallyDossier() {
             </div>
             <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 10, letterSpacing: 2, color: 'var(--sepia)', textTransform: 'uppercase', marginTop: 4 }}>Hmmm</div>
             <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 11, letterSpacing: 1.5, color: 'var(--sepia)', textTransform: 'uppercase', marginTop: 6 }}>
-              <span style={{ color: 'var(--ink)' }}>{hmmmPerMin}</span> / min
+              <span style={{ color: 'var(--ink)' }}>{hmmmPerHour}</span> / hr
             </div>
           </div>
         </div>
