@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>The Tally Dossier</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Special+Elite&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap" />
+<style>
+  :root {
+    --paper: #f3e9d2;
+    --paper-deep: #e8dab8;
+    --paper-edge: #ded0ab;
+    --ink: #1a1f3a;
+    --ink-soft: #3a3f5c;
+    --sepia: #8b6f47;
+    --sepia-soft: #b89968;
+    --red-ink: #962d27;
+    --blue-ink: #2e4d6f;
+    --green-ink: #3a6b3a;
+    --divider: rgba(26, 31, 58, 0.18);
+  }
+  * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; min-height: 100vh; }
+  body {
+    background: var(--paper);
+    background-image:
+      radial-gradient(circle at 18% 12%, rgba(139,111,71,0.10), transparent 42%),
+      radial-gradient(circle at 82% 88%, rgba(139,111,71,0.10), transparent 42%),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+    color: var(--ink);
+    font-family: 'EB Garamond', Georgia, serif;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+/* ---------- identity + room helpers ---------- */
+const ADJS = ['swift','silent','lazy','bold','hidden','crimson','velvet','misty','iron','gilded','amber','silver','wandering','sleepy','sly','cobalt'];
+const NOUNS = ['otter','fox','falcon','fern','ember','tide','glade','hawk','dune','oak','crow','wren','lake','beacon','cipher','ledger'];
+
+function sanitizeTopic(s) {
+  const cleaned = (s || '').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
+  return 'claude-tally-' + (cleaned || 'untitled');
+}
+function generateRoomName() {
+  const a = ADJS[Math.floor(Math.random() * ADJS.length)];
+  const n = NOUNS[Math.floor(Math.random() * NOUNS.length)];
+  return `${a}-${n}-${Math.floor(1000 + Math.random() * 9000)}`;
+}
+function generateMe() {
+  const codes = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const id = codes[Math.floor(Math.random()*codes.length)] + codes[Math.floor(Math.random()*codes.length)] + Math.floor(10 + Math.random()*89);
+  return { user_id: 'u_' + Math.random().toString(36).slice(2, 12), code_name: 'AGENT ' + id };
+}
+function uuid() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return 'e_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+const lsGet = (k, d) => { try { const v = localStorage.getItem('tally:' + k); return v == null ? d : JSON.parse(v); } catch { return d; } };
+const lsSet = (k, v) => { try { localStorage.setItem('tally:' + k, JSON.stringify(v)); } catch {} };
+
+function initialRoom() {
+  const m = (location.hash || '').match(/room=([^&]+)/);
+  if (m) return decodeURIComponent(m[1]);
+  return lsGet('room', null) || generateRoomName();
+}
+
+/* ---------- one group of up to 5 tally marks ---------- */
+function TallyGroup({ count }) {
+  const lineW = 4, lineH = 54, spacing = 9, pad = 4;
+  const w = pad*2 + spacing*4 + lineW, h = lineH + pad*2 + 6;
+  const strokes = [0,1,2,3].map(i => {
+    if (count <= i) return null;
+    const x = pad + i*spacing + lineW/2;
+    return <line key={i} x1={x} y1={pad} x2={x} y2={pad+lineH} stroke="var(--ink)" strokeWidth={lineW} strokeLinecap="round" />;
+  });
+  const slash = count >= 5
+    ? <line x1={pad-1} y1={pad+lineH+1} x2={pad + spacing*3 + lineW+1} y2={pad-1} stroke="var(--red-ink)" strokeWidth={lineW} strokeLinecap="round" />
+    : null;
+  return <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ display:'block' }}>{strokes}{slash}</svg>;
+}
+
+/* ---------- main app ---------- */
+function TallyDossier() {
+  const me = useMemo(() => {
+    const stored = lsGet('me', null);
+    if (stored && stored.user_id) return stored;
+    const fresh = generateMe(); lsSet('me', fresh); return fresh;
+  }, []);
+
+  const [room, setRoom] = useState(initialRoom);
+  const [roomDraft, setRoomDraft] = useState(room);
+  const [marks, setMarks] = useState([]);          // {id,user_id,code_name,ts}
+  const [online, setOnline] = useState(false);
+  const [agents, setAgents] = useState({});         // user_id -> {code_name, last}
+  const [flash, setFlash] = useState(null);         // 'self' | 'other' | null
+  const [copied, setCopied] = useState(false);
+
+  const wsRef = useRef(null);
+  const seen = useRef(new Set());
+  const wipeTs = useRef(0);
+  const reconnectRef = useRef(null);
+  const flashTimer = useRef(null);
+
+  const topic = useMemo(() => sanitizeTopic(room), [room]);
+
+  /* persist room + reflect in URL */
+  useEffect(() => {
+    lsSet('room', room);
+    setRoomDraft(room);
+    try { history.replaceState(null, '', '#room=' + encodeURIComponent(room)); } catch {}
+  }, [room]);
+
+  /* apply one event to local state */
+  const apply = useCallback((ev) => {
+    if (!ev || !ev.id || seen.current.has(ev.id)) return;
+    seen.current.add(ev.id);
+    if (ev.type === 'wipe') {
+      wipeTs.current = Math.max(wipeTs.current, ev.ts || 0);
+      setMarks(prev => prev.filter(m => m.ts > wipeTs.current));
+      return;
+    }
+    if (ev.ts && ev.ts <= wipeTs.current) return; // pre-wipe, ignore
+    if (ev.type === 'add') {
+      setMarks(prev => prev.some(m => m.id === ev.id) ? prev
+        : [...prev, { id: ev.id, user_id: ev.user_id, code_name: ev.code_name, ts: ev.ts }].sort((a,b)=>a.ts-b.ts));
+      setAgents(prev => ({ ...prev, [ev.user_id]: { code_name: ev.code_name, last: Date.now() } }));
+      if (ev.user_id !== me.user_id) doFlash('other');
+    } else if (ev.type === 'undo' && ev.target) {
+      setMarks(prev => prev.filter(m => m.id !== ev.target));
+    }
+  }, [me.user_id]);
+
+  const doFlash = useCallback((who) => {
+    setFlash(who);
+    clearTimeout(flashTimer.current);
+    flashTimer.current = setTimeout(() => setFlash(null), 260);
+  }, []);
+
+  /* connect / reconnect to ntfy over websocket, replaying cache */
+  useEffect(() => {
+    let killed = false;
+    seen.current = new Set();
+    wipeTs.current = 0;
+    setMarks([]);
+    setAgents({});
+
+    function connect() {
+      if (killed) return;
+      try { wsRef.current && wsRef.current.close(); } catch {}
+      const ws = new WebSocket(`wss://ntfy.sh/${topic}/ws?since=12h`);
+      wsRef.current = ws;
+      ws.onopen = () => { if (!killed) setOnline(true); };
+      ws.onmessage = (e) => {
+        let frame; try { frame = JSON.parse(e.data); } catch { return; }
+        if (frame.event !== 'message') return;
+        let payload; try { payload = JSON.parse(frame.message); } catch { return; }
+        apply(payload);
+      };
+      ws.onclose = () => {
+        if (killed) return;
+        setOnline(false);
+        clearTimeout(reconnectRef.current);
+        reconnectRef.current = setTimeout(connect, 1500);
+      };
+      ws.onerror = () => { try { ws.close(); } catch {} };
+    }
+    connect();
+
+    return () => {
+      killed = true;
+      clearTimeout(reconnectRef.current);
+      try { wsRef.current && wsRef.current.close(); } catch {}
+      setOnline(false);
+    };
+  }, [topic, apply]);
+
+  /* publish an event to the channel */
+  const publish = useCallback(async (ev) => {
+    apply(ev); // optimistic local
+    try {
+      await fetch(`https://ntfy.sh/${topic}`, {
+        method: 'POST',
+        headers: { 'Priority': 'min', 'X-Title': 'tally' },
+        body: JSON.stringify(ev),
+      });
+    } catch {}
+  }, [topic, apply]);
+
+  const addMark = useCallback(() => {
+    doFlash('self');
+    publish({ id: uuid(), type: 'add', user_id: me.user_id, code_name: me.code_name, ts: Date.now() });
+  }, [publish, me, doFlash]);
+
+  const undo = useCallback(() => {
+    const mine = [...marks].reverse();
+    const last = mine[0];
+    if (!last) return;
+    publish({ id: uuid(), type: 'undo', target: last.id, user_id: me.user_id, ts: Date.now() });
+  }, [marks, publish, me]);
+
+  const wipe = useCallback(() => {
+    if (!window.confirm('Wipe the ledger for everyone on this channel?')) return;
+    publish({ id: uuid(), type: 'wipe', user_id: me.user_id, ts: Date.now() });
+  }, [publish, me]);
+
+  const commitRoom = useCallback(() => {
+    const next = roomDraft.trim();
+    if (next && next !== room) setRoom(next);
+    else setRoomDraft(room);
+  }, [roomDraft, room]);
+
+  const newChannel = useCallback(() => setRoom(generateRoomName()), []);
+
+  const copyLink = useCallback(async () => {
+    const url = location.origin + location.pathname + '#room=' + encodeURIComponent(room);
+    try { await navigator.clipboard.writeText(url); } catch {}
+    setCopied(true); setTimeout(() => setCopied(false), 1600);
+  }, [room]);
+
+  const total = marks.length;
+  const groups = Math.max(1, Math.ceil(total / 5) || 1);
+  const groupCounts = Array.from({ length: total === 0 ? 0 : groups }, (_, i) => Math.min(5, total - i*5));
+  const recent = [...marks].slice(-7).reverse();
+  const others = Object.entries(agents).filter(([id]) => id !== me.user_id);
+
+  const fmtTime = (ts) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+  return (
+    <div style={{ maxWidth: 560, margin: '0 auto', padding: '26px 18px 60px', position: 'relative' }}>
+      {/* flash overlay */}
+      <div style={{
+        position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 50,
+        background: flash === 'self' ? 'rgba(150,45,39,0.16)' : flash === 'other' ? 'rgba(46,77,111,0.16)' : 'transparent',
+        transition: 'background 0.25s ease',
+      }} />
+
+      {/* dossier card */}
+      <div style={{
+        background: 'var(--paper-deep)',
+        border: '1px solid var(--paper-edge)',
+        boxShadow: '0 1px 0 rgba(255,255,255,0.45) inset, 0 22px 50px -28px rgba(26,31,58,0.55)',
+        borderRadius: 3,
+        padding: '22px 22px 26px',
+      }}>
+        {/* header */}
+        <div style={{ textAlign: 'center', borderBottom: '2px solid var(--ink)', paddingBottom: 12, marginBottom: 4 }}>
+          <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 11, letterSpacing: 3, color: 'var(--red-ink)', textTransform: 'uppercase' }}>Classified · Eyes Only</div>
+          <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 30, letterSpacing: 1, marginTop: 6, color: 'var(--ink)' }}>THE TALLY DOSSIER</div>
+          <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 11, letterSpacing: 4, color: 'var(--sepia)', marginTop: 6, textTransform: 'uppercase' }}>Field Counter · Joint Operation</div>
+        </div>
+
+        {/* channel control */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '14px 0 12px', borderBottom: '1px dashed var(--divider)' }}>
+          <span style={{ fontFamily: "'Special Elite', monospace", fontSize: 10, letterSpacing: 2, color: 'var(--sepia)', textTransform: 'uppercase' }}>Channel</span>
+          <input
+            value={roomDraft}
+            onChange={(e) => setRoomDraft(e.target.value)}
+            onBlur={commitRoom}
+            onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+            spellCheck={false}
+            style={{
+              flex: 1, minWidth: 150, background: 'rgba(255,255,255,0.35)',
+              border: '1px solid var(--divider)', borderRadius: 2, padding: '6px 9px',
+              fontFamily: "'Special Elite', monospace", fontSize: 13, color: 'var(--ink)', letterSpacing: 0.5,
+            }}
+          />
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: "'Special Elite', monospace", fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', color: online ? 'var(--green-ink)' : 'var(--red-ink)' }}>
+            <span style={{ width: 9, height: 9, borderRadius: '50%', background: online ? 'var(--green-ink)' : 'var(--red-ink)', boxShadow: online ? '0 0 0 3px rgba(58,107,58,0.18)' : '0 0 0 3px rgba(150,45,39,0.18)' }} />
+            {online ? 'On Air' : 'Offline'}
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, padding: '10px 0 0', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ fontFamily: "'EB Garamond', serif", fontSize: 14, color: 'var(--ink-soft)' }}>
+            You are <b style={{ fontFamily: "'Special Elite', monospace", fontSize: 12 }}>{me.code_name}</b>
+            {others.length > 0 && <span> · with <b style={{ fontFamily: "'Special Elite', monospace", fontSize: 12, color: 'var(--blue-ink)' }}>{others.map(([,a]) => a.code_name).join(', ')}</b></span>}
+          </div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button onClick={copyLink} style={miniBtn}>{copied ? 'link copied' : 'copy link'}</button>
+            <button onClick={newChannel} style={miniBtn}>new channel</button>
+          </div>
+        </div>
+
+        {/* count */}
+        <div style={{ textAlign: 'center', padding: '22px 0 6px' }}>
+          <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 72, lineHeight: 1, color: 'var(--ink)' }}>
+            {String(total).padStart(2, '0')}
+          </div>
+          <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 10, letterSpacing: 4, color: 'var(--sepia)', textTransform: 'uppercase', marginTop: 4 }}>Marks Logged</div>
+        </div>
+
+        {/* tally marks */}
+        <div style={{ minHeight: 76, display: 'flex', flexWrap: 'wrap', gap: '16px 20px', justifyContent: 'center', alignItems: 'flex-end', padding: '8px 4px 18px' }}>
+          {groupCounts.length === 0
+            ? <div style={{ fontFamily: "'EB Garamond', serif", fontStyle: 'italic', color: 'var(--sepia)', fontSize: 16 }}>Ledger empty. Awaiting first mark.</div>
+            : groupCounts.map((c, i) => <TallyGroup key={i} count={c} />)}
+        </div>
+
+        {/* controls */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
+          <button onClick={addMark} style={primaryBtn}>+ MARK IT</button>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <button onClick={undo} style={ghostBtn}>Undo</button>
+            <button onClick={wipe} style={dangerBtn}>Wipe Ledger</button>
+          </div>
+        </div>
+
+        {/* ledger */}
+        <div style={{ marginTop: 22, borderTop: '1px dashed var(--divider)', paddingTop: 14 }}>
+          <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 10, letterSpacing: 3, color: 'var(--sepia)', textTransform: 'uppercase', marginBottom: 8 }}>Recent Entries</div>
+          {recent.length === 0
+            ? <div style={{ fontFamily: "'EB Garamond', serif", fontStyle: 'italic', color: 'var(--sepia)', fontSize: 14 }}>No activity recorded.</div>
+            : recent.map((m) => (
+                <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '3px 0', fontFamily: "'EB Garamond', serif", fontSize: 14, color: 'var(--ink-soft)' }}>
+                  <span><span style={{ fontFamily: "'Special Elite', monospace", fontSize: 11, color: m.user_id === me.user_id ? 'var(--red-ink)' : 'var(--blue-ink)' }}>{m.code_name || 'AGENT ??'}</span> logged a mark</span>
+                  <span style={{ fontFamily: "'Special Elite', monospace", fontSize: 11, color: 'var(--sepia)' }}>{fmtTime(m.ts)}</span>
+                </div>
+              ))}
+        </div>
+
+        <div style={{ textAlign: 'center', marginTop: 18, fontFamily: "'Special Elite', monospace", fontSize: 9, letterSpacing: 2, color: 'var(--sepia-soft)', textTransform: 'uppercase' }}>
+          Share the channel link · both agents must be on the same channel
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const baseBtn = {
+  border: '1px solid var(--ink)', borderRadius: 2, cursor: 'pointer',
+  fontFamily: "'Special Elite', monospace", letterSpacing: 1.5, textTransform: 'uppercase',
+  transition: 'transform 0.05s ease, background 0.15s ease',
+};
+const primaryBtn = { ...baseBtn, background: 'var(--ink)', color: 'var(--paper)', padding: '16px', fontSize: 16 };
+const ghostBtn = { ...baseBtn, background: 'transparent', color: 'var(--ink)', padding: '11px', fontSize: 12 };
+const dangerBtn = { ...baseBtn, background: 'transparent', color: 'var(--red-ink)', borderColor: 'var(--red-ink)', padding: '11px', fontSize: 12 };
+const miniBtn = {
+  border: '1px solid var(--divider)', background: 'rgba(255,255,255,0.3)', color: 'var(--ink-soft)',
+  borderRadius: 2, cursor: 'pointer', padding: '5px 9px',
+  fontFamily: "'Special Elite', monospace", fontSize: 10, letterSpacing: 1, textTransform: 'lowercase',
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<TallyDossier />);
+</script>
+</body>
+</html>
