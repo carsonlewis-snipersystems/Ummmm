@@ -102,7 +102,7 @@ function TallyDossier() {
 
   const [room, setRoom] = useState(initialRoom);
   const [roomDraft, setRoomDraft] = useState(room);
-  const [marks, setMarks] = useState([]);          // {id,user_id,code_name,ts}
+  const [marks, setMarks] = useState([]);          // {id,user_id,code_name,ts,type}
   const [online, setOnline] = useState(false);
   const [agents, setAgents] = useState({});         // user_id -> {code_name, last}
   const [flash, setFlash] = useState(null);         // 'self' | 'other' | null
@@ -135,7 +135,7 @@ function TallyDossier() {
     if (ev.ts && ev.ts <= wipeTs.current) return; // pre-wipe, ignore
     if (ev.type === 'add') {
       setMarks(prev => prev.some(m => m.id === ev.id) ? prev
-        : [...prev, { id: ev.id, user_id: ev.user_id, code_name: ev.code_name, ts: ev.ts }].sort((a,b)=>a.ts-b.ts));
+        : [...prev, { id: ev.id, user_id: ev.user_id, code_name: ev.code_name, ts: ev.ts, mark_type: ev.mark_type }].sort((a,b)=>a.ts-b.ts));
       setAgents(prev => ({ ...prev, [ev.user_id]: { code_name: ev.code_name, last: Date.now() } }));
       if (ev.user_id !== me.user_id) doFlash('other');
     } else if (ev.type === 'undo' && ev.target) {
@@ -199,9 +199,9 @@ function TallyDossier() {
     } catch {}
   }, [topic, apply]);
 
-  const addMark = useCallback(() => {
+  const addMark = useCallback((markType) => {
     doFlash('self');
-    publish({ id: uuid(), type: 'add', user_id: me.user_id, code_name: me.code_name, ts: Date.now() });
+    publish({ id: uuid(), type: 'add', mark_type: markType, user_id: me.user_id, code_name: me.code_name, ts: Date.now() });
   }, [publish, me, doFlash]);
 
   const undo = useCallback(() => {
@@ -231,6 +231,8 @@ function TallyDossier() {
   }, [room]);
 
   const total = marks.length;
+  const ummCount = marks.filter(m => m.mark_type === 'umm').length;
+  const hmmmCount = marks.filter(m => m.mark_type === 'hmmmm').length;
   const groups = Math.max(1, Math.ceil(total / 5) || 1);
   const groupCounts = Array.from({ length: total === 0 ? 0 : groups }, (_, i) => Math.min(5, total - i*5));
   const recent = [...marks].slice(-7).reverse();
@@ -295,11 +297,19 @@ function TallyDossier() {
         </div>
 
         {/* count */}
-        <div style={{ textAlign: 'center', padding: '22px 0 6px' }}>
-          <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 72, lineHeight: 1, color: 'var(--ink)' }}>
-            {String(total).padStart(2, '0')}
+        <div style={{ textAlign: 'center', padding: '22px 0 6px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+          <div>
+            <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 56, lineHeight: 1, color: 'var(--ink)' }}>
+              {String(ummCount).padStart(2, '0')}
+            </div>
+            <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 10, letterSpacing: 2, color: 'var(--sepia)', textTransform: 'uppercase', marginTop: 4 }}>Ummm</div>
           </div>
-          <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 10, letterSpacing: 4, color: 'var(--sepia)', textTransform: 'uppercase', marginTop: 4 }}>Marks Logged</div>
+          <div>
+            <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 56, lineHeight: 1, color: 'var(--ink)' }}>
+              {String(hmmmCount).padStart(2, '0')}
+            </div>
+            <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 10, letterSpacing: 2, color: 'var(--sepia)', textTransform: 'uppercase', marginTop: 4 }}>Hmmm</div>
+          </div>
         </div>
 
         {/* tally marks */}
@@ -310,9 +320,10 @@ function TallyDossier() {
         </div>
 
         {/* controls */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
-          <button onClick={addMark} style={primaryBtn}>+ MARK IT</button>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <button onClick={() => addMark('umm')} style={primaryBtn}>+ UMMM</button>
+          <button onClick={() => addMark('hmmmm')} style={primaryBtn}>+ HMMM</button>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, gridColumn: '1 / -1' }}>
             <button onClick={undo} style={ghostBtn}>Undo</button>
             <button onClick={wipe} style={dangerBtn}>Wipe Ledger</button>
           </div>
@@ -325,7 +336,7 @@ function TallyDossier() {
             ? <div style={{ fontFamily: "'EB Garamond', serif", fontStyle: 'italic', color: 'var(--sepia)', fontSize: 14 }}>No activity recorded.</div>
             : recent.map((m) => (
                 <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '3px 0', fontFamily: "'EB Garamond', serif", fontSize: 14, color: 'var(--ink-soft)' }}>
-                  <span><span style={{ fontFamily: "'Special Elite', monospace", fontSize: 11, color: m.user_id === me.user_id ? 'var(--red-ink)' : 'var(--blue-ink)' }}>{m.code_name || 'AGENT ??'}</span> logged a mark</span>
+                  <span><span style={{ fontFamily: "'Special Elite', monospace", fontSize: 11, color: m.user_id === me.user_id ? 'var(--red-ink)' : 'var(--blue-ink)' }}>{m.code_name || 'AGENT ??'}</span> logged <b>{m.mark_type === 'umm' ? 'UMMM' : 'HMMM'}</b></span>
                   <span style={{ fontFamily: "'Special Elite', monospace", fontSize: 11, color: 'var(--sepia)' }}>{fmtTime(m.ts)}</span>
                 </div>
               ))}
