@@ -107,6 +107,7 @@ function TallyDossier() {
   const [agents, setAgents] = useState({});         // user_id -> {code_name, last}
   const [flash, setFlash] = useState(null);         // 'self' | 'other' | null
   const [copied, setCopied] = useState(false);
+  const [now, setNow] = useState(Date.now());
 
   const wsRef = useRef(null);
   const seen = useRef(new Set());
@@ -142,6 +143,12 @@ function TallyDossier() {
       setMarks(prev => prev.filter(m => m.id !== ev.target));
     }
   }, [me.user_id]);
+
+  /* tick once a second so the per-minute pace decays in real time */
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   const doFlash = useCallback((who) => {
     setFlash(who);
@@ -233,6 +240,7 @@ function TallyDossier() {
   const total = marks.length;
   const ummCount = marks.filter(m => m.mark_type === 'umm').length;
   const hmmmCount = marks.filter(m => m.mark_type === 'hmmmm').length;
+  const perMinute = marks.filter(m => now - m.ts <= 60000).length;
   const groups = Math.max(1, Math.ceil(total / 5) || 1);
   const groupCounts = Array.from({ length: total === 0 ? 0 : groups }, (_, i) => Math.min(5, total - i*5));
   const recent = [...marks].slice(-7).reverse();
@@ -310,6 +318,11 @@ function TallyDossier() {
             </div>
             <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 10, letterSpacing: 2, color: 'var(--sepia)', textTransform: 'uppercase', marginTop: 4 }}>Hmmm</div>
           </div>
+        </div>
+
+        {/* pace */}
+        <div style={{ textAlign: 'center', padding: '4px 0 0', fontFamily: "'Special Elite', monospace", fontSize: 11, letterSpacing: 2, color: 'var(--sepia)', textTransform: 'uppercase' }}>
+          Pace · <span style={{ color: 'var(--ink)' }}>{perMinute}</span> / min
         </div>
 
         {/* tally marks */}
