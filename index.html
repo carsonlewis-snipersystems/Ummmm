@@ -77,21 +77,6 @@ function initialRoom() {
   return lsGet('room', null) || generateRoomName();
 }
 
-/* ---------- one group of up to 5 tally marks ---------- */
-function TallyGroup({ count }) {
-  const lineW = 4, lineH = 54, spacing = 9, pad = 4;
-  const w = pad*2 + spacing*4 + lineW, h = lineH + pad*2 + 6;
-  const strokes = [0,1,2,3].map(i => {
-    if (count <= i) return null;
-    const x = pad + i*spacing + lineW/2;
-    return <line key={i} x1={x} y1={pad} x2={x} y2={pad+lineH} stroke="var(--ink)" strokeWidth={lineW} strokeLinecap="round" />;
-  });
-  const slash = count >= 5
-    ? <line x1={pad-1} y1={pad+lineH+1} x2={pad + spacing*3 + lineW+1} y2={pad-1} stroke="var(--red-ink)" strokeWidth={lineW} strokeLinecap="round" />
-    : null;
-  return <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ display:'block' }}>{strokes}{slash}</svg>;
-}
-
 /* ---------- main app ---------- */
 function TallyDossier() {
   const me = useMemo(() => {
@@ -237,16 +222,11 @@ function TallyDossier() {
     setCopied(true); setTimeout(() => setCopied(false), 1600);
   }, [room]);
 
-  const total = marks.length;
   const ummCount = marks.filter(m => m.mark_type === 'umm').length;
   const hmmmCount = marks.filter(m => m.mark_type === 'hmmmm').length;
-  const perMinute = marks.filter(m => now - m.ts <= 60000).length;
-  const groups = Math.max(1, Math.ceil(total / 5) || 1);
-  const groupCounts = Array.from({ length: total === 0 ? 0 : groups }, (_, i) => Math.min(5, total - i*5));
-  const recent = [...marks].slice(-7).reverse();
+  const ummPerMin = marks.filter(m => m.mark_type === 'umm' && now - m.ts <= 60000).length;
+  const hmmmPerMin = marks.filter(m => m.mark_type === 'hmmmm' && now - m.ts <= 60000).length;
   const others = Object.entries(agents).filter(([id]) => id !== me.user_id);
-
-  const fmtTime = (ts) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
   return (
     <div style={{ maxWidth: 560, margin: '0 auto', padding: '26px 18px 60px', position: 'relative' }}>
@@ -305,31 +285,25 @@ function TallyDossier() {
         </div>
 
         {/* count */}
-        <div style={{ textAlign: 'center', padding: '22px 0 6px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+        <div style={{ textAlign: 'center', padding: '22px 0 18px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
           <div>
             <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 56, lineHeight: 1, color: 'var(--ink)' }}>
               {String(ummCount).padStart(2, '0')}
             </div>
             <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 10, letterSpacing: 2, color: 'var(--sepia)', textTransform: 'uppercase', marginTop: 4 }}>Ummm</div>
+            <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 11, letterSpacing: 1.5, color: 'var(--sepia)', textTransform: 'uppercase', marginTop: 6 }}>
+              <span style={{ color: 'var(--ink)' }}>{ummPerMin}</span> / min
+            </div>
           </div>
           <div>
             <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 56, lineHeight: 1, color: 'var(--ink)' }}>
               {String(hmmmCount).padStart(2, '0')}
             </div>
             <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 10, letterSpacing: 2, color: 'var(--sepia)', textTransform: 'uppercase', marginTop: 4 }}>Hmmm</div>
+            <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 11, letterSpacing: 1.5, color: 'var(--sepia)', textTransform: 'uppercase', marginTop: 6 }}>
+              <span style={{ color: 'var(--ink)' }}>{hmmmPerMin}</span> / min
+            </div>
           </div>
-        </div>
-
-        {/* pace */}
-        <div style={{ textAlign: 'center', padding: '4px 0 0', fontFamily: "'Special Elite', monospace", fontSize: 11, letterSpacing: 2, color: 'var(--sepia)', textTransform: 'uppercase' }}>
-          Pace · <span style={{ color: 'var(--ink)' }}>{perMinute}</span> / min
-        </div>
-
-        {/* tally marks */}
-        <div style={{ minHeight: 76, display: 'flex', flexWrap: 'wrap', gap: '16px 20px', justifyContent: 'center', alignItems: 'flex-end', padding: '8px 4px 18px' }}>
-          {groupCounts.length === 0
-            ? <div style={{ fontFamily: "'EB Garamond', serif", fontStyle: 'italic', color: 'var(--sepia)', fontSize: 16 }}>Ledger empty. Awaiting first mark.</div>
-            : groupCounts.map((c, i) => <TallyGroup key={i} count={c} />)}
         </div>
 
         {/* controls */}
@@ -340,19 +314,6 @@ function TallyDossier() {
             <button onClick={undo} style={ghostBtn}>Undo</button>
             <button onClick={wipe} style={dangerBtn}>Wipe Ledger</button>
           </div>
-        </div>
-
-        {/* ledger */}
-        <div style={{ marginTop: 22, borderTop: '1px dashed var(--divider)', paddingTop: 14 }}>
-          <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 10, letterSpacing: 3, color: 'var(--sepia)', textTransform: 'uppercase', marginBottom: 8 }}>Recent Entries</div>
-          {recent.length === 0
-            ? <div style={{ fontFamily: "'EB Garamond', serif", fontStyle: 'italic', color: 'var(--sepia)', fontSize: 14 }}>No activity recorded.</div>
-            : recent.map((m) => (
-                <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '3px 0', fontFamily: "'EB Garamond', serif", fontSize: 14, color: 'var(--ink-soft)' }}>
-                  <span><span style={{ fontFamily: "'Special Elite', monospace", fontSize: 11, color: m.user_id === me.user_id ? 'var(--red-ink)' : 'var(--blue-ink)' }}>{m.code_name || 'AGENT ??'}</span> logged <b>{m.mark_type === 'umm' ? 'UMMM' : 'HMMM'}</b></span>
-                  <span style={{ fontFamily: "'Special Elite', monospace", fontSize: 11, color: 'var(--sepia)' }}>{fmtTime(m.ts)}</span>
-                </div>
-              ))}
         </div>
 
         <div style={{ textAlign: 'center', marginTop: 18, fontFamily: "'Special Elite', monospace", fontSize: 9, letterSpacing: 2, color: 'var(--sepia-soft)', textTransform: 'uppercase' }}>
