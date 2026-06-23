@@ -6,32 +6,71 @@
 <title>Ummmmm Counter</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Special+Elite&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" />
 <style>
   :root {
-    --paper: #f3e9d2;
-    --paper-deep: #e8dab8;
-    --paper-edge: #ded0ab;
-    --ink: #1a1f3a;
-    --ink-soft: #3a3f5c;
-    --sepia: #8b6f47;
-    --sepia-soft: #b89968;
-    --red-ink: #962d27;
-    --blue-ink: #2e4d6f;
-    --green-ink: #3a6b3a;
-    --divider: rgba(26, 31, 58, 0.18);
+    --bg: #07080d;
+    --text: #f3f4fb;
+    --text-soft: rgba(243,244,251,0.60);
+    --text-faint: rgba(243,244,251,0.34);
+    --card: rgba(255,255,255,0.045);
+    --card-border: rgba(255,255,255,0.10);
+    --field: rgba(255,255,255,0.05);
+    --divider: rgba(255,255,255,0.08);
+    --umm: #a78bfa;
+    --umm-2: #7c5cff;
+    --umm-glow: rgba(124,92,255,0.45);
+    --hmm: #4be3c8;
+    --hmm-2: #22d3ee;
+    --hmm-glow: rgba(40,210,200,0.42);
+    --online: #4be3a0;
+    --offline: #ff6b6b;
   }
   * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
   html, body { margin: 0; padding: 0; min-height: 100vh; }
   body {
-    background: var(--paper);
+    background: var(--bg);
     background-image:
-      radial-gradient(circle at 18% 12%, rgba(139,111,71,0.10), transparent 42%),
-      radial-gradient(circle at 82% 88%, rgba(139,111,71,0.10), transparent 42%),
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
-    color: var(--ink);
-    font-family: 'EB Garamond', Georgia, serif;
+      radial-gradient(900px circle at 12% -8%, rgba(124,92,255,0.22), transparent 55%),
+      radial-gradient(900px circle at 92% 108%, rgba(34,211,238,0.18), transparent 55%);
+    background-attachment: fixed;
+    color: var(--text);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
+  input { font-family: inherit; outline: none; }
+  input:focus { border-color: rgba(167,139,250,0.55); box-shadow: 0 0 0 3px rgba(124,92,255,0.18); }
+
+  .btn {
+    border: 0; border-radius: 14px; cursor: pointer;
+    font-family: 'Inter', sans-serif; font-weight: 600;
+    transition: transform 0.12s ease, box-shadow 0.2s ease, background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  }
+  .btn:active { transform: translateY(1px) scale(0.99); }
+  .count-btn {
+    padding: 18px 16px; font-size: 16px; letter-spacing: 0.3px; color: #0a0b12;
+  }
+  .btn-umm { background: linear-gradient(135deg, var(--umm) 0%, var(--umm-2) 100%); box-shadow: 0 10px 26px -10px var(--umm-glow); }
+  .btn-umm:hover { box-shadow: 0 14px 34px -10px var(--umm-glow); transform: translateY(-1px); }
+  .btn-hmm { background: linear-gradient(135deg, var(--hmm) 0%, var(--hmm-2) 100%); box-shadow: 0 10px 26px -10px var(--hmm-glow); }
+  .btn-hmm:hover { box-shadow: 0 14px 34px -10px var(--hmm-glow); transform: translateY(-1px); }
+  .btn-ghost {
+    background: rgba(255,255,255,0.04); border: 1px solid var(--divider);
+    color: var(--text-soft); padding: 12px; font-size: 13px;
+  }
+  .btn-ghost:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+  .btn-danger {
+    background: transparent; border: 1px solid rgba(255,107,107,0.35);
+    color: #ff8585; padding: 12px; font-size: 13px;
+  }
+  .btn-danger:hover { background: rgba(255,107,107,0.10); border-color: rgba(255,107,107,0.6); }
+  .mini {
+    border: 1px solid var(--divider); background: rgba(255,255,255,0.04); color: var(--text-soft);
+    border-radius: 9px; cursor: pointer; padding: 6px 11px; font-family: 'Inter', sans-serif;
+    font-size: 12px; font-weight: 500; transition: background 0.2s ease, color 0.2s ease;
+  }
+  .mini:hover { background: rgba(255,255,255,0.09); color: var(--text); }
+
   @media (prefers-reduced-motion: reduce) {
     * { animation: none !important; transition: none !important; }
   }
@@ -139,7 +178,7 @@ function TallyDossier() {
     }
   }, [me.user_id]);
 
-  /* tick once a second so the per-minute pace decays in real time */
+  /* tick once a second so the per-hour pace decays in real time */
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
@@ -214,7 +253,7 @@ function TallyDossier() {
   }, [marks, publish, me]);
 
   const wipe = useCallback(() => {
-    if (!window.confirm('Wipe the ledger for everyone on this channel?')) return;
+    if (!window.confirm('Reset the counter for everyone on this channel?')) return;
     publish({ id: uuid(), type: 'wipe', user_id: me.user_id, ts: Date.now() });
   }, [publish, me]);
 
@@ -241,32 +280,37 @@ function TallyDossier() {
   const others = Object.entries(agents).filter(([id]) => id !== me.user_id);
 
   return (
-    <div style={{ maxWidth: 560, margin: '0 auto', padding: '26px 18px 60px', position: 'relative' }}>
+    <div style={{ maxWidth: 460, margin: '0 auto', padding: '48px 18px 64px', position: 'relative' }}>
       {/* flash overlay */}
       <div style={{
         position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 50,
-        background: flash === 'self' ? 'rgba(150,45,39,0.16)' : flash === 'other' ? 'rgba(46,77,111,0.16)' : 'transparent',
+        background: flash === 'self' ? 'radial-gradient(600px circle at 50% 50%, rgba(124,92,255,0.12), transparent 70%)'
+          : flash === 'other' ? 'radial-gradient(600px circle at 50% 50%, rgba(40,210,200,0.12), transparent 70%)' : 'transparent',
         transition: 'background 0.25s ease',
       }} />
 
-      {/* dossier card */}
+      {/* glass card */}
       <div style={{
-        background: 'var(--paper-deep)',
-        border: '1px solid var(--paper-edge)',
-        boxShadow: '0 1px 0 rgba(255,255,255,0.45) inset, 0 22px 50px -28px rgba(26,31,58,0.55)',
-        borderRadius: 3,
-        padding: '22px 22px 26px',
+        background: 'var(--card)',
+        border: '1px solid var(--card-border)',
+        backdropFilter: 'blur(22px)', WebkitBackdropFilter: 'blur(22px)',
+        boxShadow: '0 1px 0 rgba(255,255,255,0.08) inset, 0 30px 70px -30px rgba(0,0,0,0.8)',
+        borderRadius: 24,
+        padding: '28px 24px 26px',
       }}>
         {/* header */}
-        <div style={{ textAlign: 'center', borderBottom: '2px solid var(--ink)', paddingBottom: 12, marginBottom: 4 }}>
-          <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 11, letterSpacing: 3, color: 'var(--red-ink)', textTransform: 'uppercase' }}>Classified · Eyes Only</div>
-          <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 30, letterSpacing: 1, marginTop: 6, color: 'var(--ink)' }}>UMMMMM COUNTER</div>
-          <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 11, letterSpacing: 4, color: 'var(--sepia)', marginTop: 6, textTransform: 'uppercase' }}>Field Counter · Joint Operation</div>
+        <div style={{ textAlign: 'center', marginBottom: 22 }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 11, fontWeight: 600, letterSpacing: 1.5, color: 'var(--text-faint)', textTransform: 'uppercase' }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: online ? 'var(--online)' : 'var(--offline)', boxShadow: online ? '0 0 8px var(--online)' : 'none' }} />
+            {online ? 'Live · Synced' : 'Reconnecting'}
+          </div>
+          <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 32, letterSpacing: -0.5, marginTop: 10, color: 'var(--text)' }}>Ummmmm Counter</div>
+          <div style={{ fontSize: 13, color: 'var(--text-soft)', marginTop: 6 }}>Tap to tally — everyone on the channel stays in sync.</div>
         </div>
 
         {/* channel control */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '14px 0 12px', borderBottom: '1px dashed var(--divider)' }}>
-          <span style={{ fontFamily: "'Special Elite', monospace", fontSize: 10, letterSpacing: 2, color: 'var(--sepia)', textTransform: 'uppercase' }}>Channel</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', paddingBottom: 14, borderBottom: '1px solid var(--divider)' }}>
+          <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: 1, color: 'var(--text-faint)', textTransform: 'uppercase' }}>Channel</span>
           <input
             value={roomDraft}
             onChange={(e) => setRoomDraft(e.target.value)}
@@ -274,81 +318,72 @@ function TallyDossier() {
             onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
             spellCheck={false}
             style={{
-              flex: 1, minWidth: 150, background: 'rgba(255,255,255,0.35)',
-              border: '1px solid var(--divider)', borderRadius: 2, padding: '6px 9px',
-              fontFamily: "'Special Elite', monospace", fontSize: 13, color: 'var(--ink)', letterSpacing: 0.5,
+              flex: 1, minWidth: 150, background: 'var(--field)',
+              border: '1px solid var(--divider)', borderRadius: 10, padding: '9px 12px',
+              fontSize: 13, fontWeight: 500, color: 'var(--text)', letterSpacing: 0.2,
+              transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
             }}
           />
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: "'Special Elite', monospace", fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', color: online ? 'var(--green-ink)' : 'var(--red-ink)' }}>
-            <span style={{ width: 9, height: 9, borderRadius: '50%', background: online ? 'var(--green-ink)' : 'var(--red-ink)', boxShadow: online ? '0 0 0 3px rgba(58,107,58,0.18)' : '0 0 0 3px rgba(150,45,39,0.18)' }} />
-            {online ? 'On Air' : 'Offline'}
-          </span>
         </div>
 
-        <div style={{ display: 'flex', gap: 8, padding: '10px 0 0', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ fontFamily: "'EB Garamond', serif", fontSize: 14, color: 'var(--ink-soft)' }}>
-            You are <b style={{ fontFamily: "'Special Elite', monospace", fontSize: 12 }}>{me.code_name}</b>
-            {others.length > 0 && <span> · with <b style={{ fontFamily: "'Special Elite', monospace", fontSize: 12, color: 'var(--blue-ink)' }}>{others.map(([,a]) => a.code_name).join(', ')}</b></span>}
+        <div style={{ display: 'flex', gap: 8, padding: '12px 0 0', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ fontSize: 13, color: 'var(--text-soft)' }}>
+            You are <b style={{ color: 'var(--text)', fontWeight: 600 }}>{me.code_name}</b>
+            {others.length > 0 && <span> · with <b style={{ color: 'var(--hmm)', fontWeight: 600 }}>{others.map(([,a]) => a.code_name).join(', ')}</b></span>}
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={copyLink} style={miniBtn}>{copied ? 'link copied' : 'copy link'}</button>
-            <button onClick={newChannel} style={miniBtn}>new channel</button>
+            <button onClick={copyLink} className="mini">{copied ? 'copied ✓' : 'copy link'}</button>
+            <button onClick={newChannel} className="mini">new channel</button>
           </div>
         </div>
 
         {/* count */}
-        <div style={{ textAlign: 'center', padding: '22px 0 18px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-          <div>
-            <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 56, lineHeight: 1, color: 'var(--ink)' }}>
-              {String(ummCount).padStart(2, '0')}
-            </div>
-            <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 10, letterSpacing: 2, color: 'var(--sepia)', textTransform: 'uppercase', marginTop: 4 }}>Ummm</div>
-            <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 11, letterSpacing: 1.5, color: 'var(--sepia)', textTransform: 'uppercase', marginTop: 6 }}>
-              <span style={{ color: 'var(--ink)' }}>{ummPerHour}</span> / hr
-            </div>
-          </div>
-          <div>
-            <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 56, lineHeight: 1, color: 'var(--ink)' }}>
-              {String(hmmmCount).padStart(2, '0')}
-            </div>
-            <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 10, letterSpacing: 2, color: 'var(--sepia)', textTransform: 'uppercase', marginTop: 4 }}>Hmmm</div>
-            <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 11, letterSpacing: 1.5, color: 'var(--sepia)', textTransform: 'uppercase', marginTop: 6 }}>
-              <span style={{ color: 'var(--ink)' }}>{hmmmPerHour}</span> / hr
-            </div>
-          </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, padding: '24px 0 22px' }}>
+          <Stat label="Ummm" count={ummCount} rate={ummPerHour} accent="var(--umm)" accent2="var(--umm-2)" glow="var(--umm-glow)" />
+          <Stat label="Hmmm" count={hmmmCount} rate={hmmmPerHour} accent="var(--hmm)" accent2="var(--hmm-2)" glow="var(--hmm-glow)" />
         </div>
 
         {/* controls */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <button onClick={() => addMark('umm')} style={primaryBtn}>+ UMMM</button>
-          <button onClick={() => addMark('hmmmm')} style={primaryBtn}>+ HMMM</button>
+          <button onClick={() => addMark('umm')} className="btn count-btn btn-umm">+ Ummm</button>
+          <button onClick={() => addMark('hmmmm')} className="btn count-btn btn-hmm">+ Hmmm</button>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, gridColumn: '1 / -1' }}>
-            <button onClick={undo} style={ghostBtn}>Undo</button>
-            <button onClick={wipe} style={dangerBtn}>Wipe Ledger</button>
+            <button onClick={undo} className="btn btn-ghost">Undo</button>
+            <button onClick={wipe} className="btn btn-danger">Reset</button>
           </div>
         </div>
 
-        <div style={{ textAlign: 'center', marginTop: 18, fontFamily: "'Special Elite', monospace", fontSize: 9, letterSpacing: 2, color: 'var(--sepia-soft)', textTransform: 'uppercase' }}>
-          Share the channel link · both agents must be on the same channel
+        <div style={{ textAlign: 'center', marginTop: 20, fontSize: 12, color: 'var(--text-faint)' }}>
+          Share the channel link · same channel = same count
         </div>
       </div>
     </div>
   );
 }
 
-const baseBtn = {
-  border: '1px solid var(--ink)', borderRadius: 2, cursor: 'pointer',
-  fontFamily: "'Special Elite', monospace", letterSpacing: 1.5, textTransform: 'uppercase',
-  transition: 'transform 0.05s ease, background 0.15s ease',
-};
-const primaryBtn = { ...baseBtn, background: 'var(--ink)', color: 'var(--paper)', padding: '16px', fontSize: 16 };
-const ghostBtn = { ...baseBtn, background: 'transparent', color: 'var(--ink)', padding: '11px', fontSize: 12 };
-const dangerBtn = { ...baseBtn, background: 'transparent', color: 'var(--red-ink)', borderColor: 'var(--red-ink)', padding: '11px', fontSize: 12 };
-const miniBtn = {
-  border: '1px solid var(--divider)', background: 'rgba(255,255,255,0.3)', color: 'var(--ink-soft)',
-  borderRadius: 2, cursor: 'pointer', padding: '5px 9px',
-  fontFamily: "'Special Elite', monospace", fontSize: 10, letterSpacing: 1, textTransform: 'lowercase',
-};
+/* a single counter column: big gradient number, label, live per-hour rate */
+function Stat({ label, count, rate, accent, accent2, glow }) {
+  return (
+    <div style={{
+      background: 'rgba(255,255,255,0.025)', border: '1px solid var(--divider)',
+      borderRadius: 16, padding: '18px 12px 14px', textAlign: 'center',
+    }}>
+      <div style={{
+        fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 60, lineHeight: 1,
+        fontVariantNumeric: 'tabular-nums',
+        background: `linear-gradient(180deg, ${accent} 0%, ${accent2} 100%)`,
+        WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent',
+        textShadow: `0 0 28px ${glow}`,
+      }}>
+        {String(count).padStart(2, '0')}
+      </div>
+      <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: 1.5, color: 'var(--text-soft)', textTransform: 'uppercase', marginTop: 8 }}>{label}</div>
+      <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-faint)', marginTop: 4 }}>
+        <span style={{ color: accent }}>{rate}</span> / hr
+      </div>
+    </div>
+  );
+}
 
 ReactDOM.createRoot(document.getElementById('root')).render(<TallyDossier />);
 </script>
