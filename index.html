@@ -94,6 +94,8 @@
   html[data-theme="light"] .mini:hover,
   html[data-theme="light"] .btn-ghost:hover { background: rgba(20,22,40,0.08); }
 
+  @keyframes flashFade { from { opacity: 1; } to { opacity: 0; } }
+
   @media (prefers-reduced-motion: reduce) {
     * { animation: none !important; transition: none !important; }
   }
@@ -181,6 +183,7 @@ function TallyDossier() {
   const wipeTs = useRef(0);
   const reconnectRef = useRef(null);
   const flashTimer = useRef(null);
+  const flashN = useRef(0);
 
   const topic = useMemo(() => sanitizeTopic(room), [room]);
 
@@ -224,9 +227,10 @@ function TallyDossier() {
   }, []);
 
   const doFlash = useCallback((who) => {
-    setFlash(who);
+    flashN.current += 1;
+    setFlash({ who, n: flashN.current });
     clearTimeout(flashTimer.current);
-    flashTimer.current = setTimeout(() => setFlash(null), who === 'self' ? 80 : 260);
+    flashTimer.current = setTimeout(() => setFlash(null), 1000);
   }, []);
 
   /* connect / reconnect to ntfy over websocket, replaying cache */
@@ -320,13 +324,16 @@ function TallyDossier() {
 
   return (
     <div style={{ maxWidth: 460, margin: '0 auto', padding: '48px 18px 64px', position: 'relative' }}>
-      {/* flash overlay */}
-      <div style={{
-        position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 50,
-        background: flash === 'self' ? '#ffff00'
-          : flash === 'other' ? '#0000ff' : 'transparent',
-        transition: flash ? 'background 0.01s linear' : 'background 0.25s ease',
-      }} />
+      {/* flash overlay — white centre fading out to colour over 1s */}
+      {flash && (
+        <div key={flash.n} style={{
+          position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 50,
+          background: flash.who === 'self'
+            ? 'radial-gradient(circle at 50% 50%, #ffffff 0%, #ffff00 65%)'
+            : 'radial-gradient(circle at 50% 50%, #ffffff 0%, #0000ff 65%)',
+          animation: 'flashFade 1s ease-out forwards',
+        }} />
+      )}
 
       {/* glass card */}
       <div style={{
