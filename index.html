@@ -71,6 +71,29 @@
   }
   .mini:hover { background: rgba(255,255,255,0.09); color: var(--text); }
 
+  /* ---- light theme overrides ---- */
+  html[data-theme="light"] {
+    --bg: #e9ecf6;
+    --text: #171a26;
+    --text-soft: rgba(23,26,38,0.62);
+    --text-faint: rgba(23,26,38,0.42);
+    --card: rgba(255,255,255,0.72);
+    --card-border: rgba(20,22,40,0.10);
+    --field: rgba(255,255,255,0.7);
+    --divider: rgba(20,22,40,0.10);
+    --umm-glow: rgba(124,92,255,0.35);
+    --hmm-glow: rgba(40,210,200,0.32);
+  }
+  html[data-theme="light"] body {
+    background-image:
+      radial-gradient(900px circle at 12% -8%, rgba(124,92,255,0.16), transparent 55%),
+      radial-gradient(900px circle at 92% 108%, rgba(34,211,238,0.16), transparent 55%);
+  }
+  html[data-theme="light"] .mini,
+  html[data-theme="light"] .btn-ghost { background: rgba(20,22,40,0.04); }
+  html[data-theme="light"] .mini:hover,
+  html[data-theme="light"] .btn-ghost:hover { background: rgba(20,22,40,0.08); }
+
   @media (prefers-reduced-motion: reduce) {
     * { animation: none !important; transition: none !important; }
   }
@@ -92,6 +115,15 @@ const NOUNS = ['otter','fox','falcon','fern','ember','tide','glade','hawk','dune
 function sanitizeTopic(s) {
   const cleaned = (s || '').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
   return 'claude-tally-' + (cleaned || 'untitled');
+}
+/* collapse near-simultaneous clicks: keep the first, drop any within `windowMs`
+   of the previous kept one. guards against two people tapping the same beat. */
+function debounceTimes(times, windowMs) {
+  const out = [];
+  for (const t of times) {
+    if (out.length === 0 || t - out[out.length - 1] >= windowMs) out.push(t);
+  }
+  return out;
 }
 /* extrapolate clicks-per-hour from the spacing of the most recent clicks.
    needs >=2 clicks; the window stretches to `now`, so an idle gap decays the rate. */
@@ -142,6 +174,7 @@ function TallyDossier() {
   const [flash, setFlash] = useState(null);         // 'self' | 'other' | null
   const [copied, setCopied] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const [theme, setTheme] = useState(() => lsGet('theme', 'dark'));
 
   const wsRef = useRef(null);
   const seen = useRef(new Set());
@@ -177,6 +210,12 @@ function TallyDossier() {
       setMarks(prev => prev.filter(m => m.id !== ev.target));
     }
   }, [me.user_id]);
+
+  /* reflect + persist the chosen theme on the document root */
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    lsSet('theme', theme);
+  }, [theme]);
 
   /* tick once a second so the per-hour pace decays in real time */
   useEffect(() => {
@@ -271,8 +310,8 @@ function TallyDossier() {
     setCopied(true); setTimeout(() => setCopied(false), 1600);
   }, [room]);
 
-  const ummTimes = marks.filter(m => m.mark_type === 'umm').map(m => m.ts);
-  const hmmmTimes = marks.filter(m => m.mark_type === 'hmmmm').map(m => m.ts);
+  const ummTimes = debounceTimes(marks.filter(m => m.mark_type === 'umm').map(m => m.ts), 1000);
+  const hmmmTimes = debounceTimes(marks.filter(m => m.mark_type === 'hmmmm').map(m => m.ts), 1000);
   const ummCount = ummTimes.length;
   const hmmmCount = hmmmTimes.length;
   const ummPerHour = ratePerHour(ummTimes, now);
@@ -297,7 +336,18 @@ function TallyDossier() {
         boxShadow: '0 1px 0 rgba(255,255,255,0.08) inset, 0 30px 70px -30px rgba(0,0,0,0.8)',
         borderRadius: 24,
         padding: '28px 24px 26px',
+        position: 'relative',
       }}>
+        {/* theme toggle */}
+        <button
+          onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+          className="mini"
+          aria-label="Toggle light or dark mode"
+          style={{ position: 'absolute', top: 18, right: 18, padding: '6px 9px', fontSize: 14, lineHeight: 1 }}
+        >
+          {theme === 'dark' ? '☀' : '☾'}
+        </button>
+
         {/* header */}
         <div style={{ textAlign: 'center', marginBottom: 22 }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 11, fontWeight: 600, letterSpacing: 1.5, color: 'var(--text-faint)', textTransform: 'uppercase' }}>
