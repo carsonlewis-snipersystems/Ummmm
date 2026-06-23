@@ -226,7 +226,7 @@ function TallyDossier() {
   const doFlash = useCallback((who) => {
     setFlash(who);
     clearTimeout(flashTimer.current);
-    flashTimer.current = setTimeout(() => setFlash(null), 260);
+    flashTimer.current = setTimeout(() => setFlash(null), who === 'self' ? 80 : 260);
   }, []);
 
   /* connect / reconnect to ntfy over websocket, replaying cache */
@@ -323,9 +323,9 @@ function TallyDossier() {
       {/* flash overlay */}
       <div style={{
         position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 50,
-        background: flash === 'self' ? 'radial-gradient(600px circle at 50% 50%, rgba(124,92,255,0.12), transparent 70%)'
+        background: flash === 'self' ? '#ffff00'
           : flash === 'other' ? 'radial-gradient(600px circle at 50% 50%, rgba(40,210,200,0.12), transparent 70%)' : 'transparent',
-        transition: 'background 0.25s ease',
+        transition: flash === 'self' ? 'background 0.01s linear' : 'background 0.25s ease',
       }} />
 
       {/* glass card */}
