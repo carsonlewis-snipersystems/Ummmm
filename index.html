@@ -324,8 +324,8 @@ function TallyDossier() {
       <div style={{
         position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 50,
         background: flash === 'self' ? '#ffff00'
-          : flash === 'other' ? 'radial-gradient(600px circle at 50% 50%, rgba(40,210,200,0.12), transparent 70%)' : 'transparent',
-        transition: flash === 'self' ? 'background 0.01s linear' : 'background 0.25s ease',
+          : flash === 'other' ? '#0000ff' : 'transparent',
+        transition: flash ? 'background 0.01s linear' : 'background 0.25s ease',
       }} />
 
       {/* glass card */}
